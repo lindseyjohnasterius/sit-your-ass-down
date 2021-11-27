@@ -1,0 +1,29 @@
+{
+  "name": "sit-your-ass-down",
+  "version": "1.0.0",
+  "description": "use tensor flow to keep your ass in your seat",
+  "main": "index.js",
+  "scripts": {
+    "test": "lol",
+    "start": "node index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lindseyjohnasterius/sit-your-ass-down.git"
+  },
+  "keywords": [
+    "tensor-flow",
+    "ai",
+    "productivity"
+  ],
+  "author": "LNSY",
+  "license": "UNLICENSED",
+  "bugs": {
+    "url": "https://github.com/lindseyjohnasterius/sit-your-ass-down/issues"
+  },
+  "homepage": "https://github.com/lindseyjohnasterius/sit-your-ass-down#readme",
+  "dependencies": {
+    "better-opn": "^3.0.1",
+    "express": "^4.17.1"
+  }
+}

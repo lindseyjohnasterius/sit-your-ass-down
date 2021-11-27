@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>EYE</title>
+
+</head>
+<body>
+<div id="videos">
+<video id="localVideo" class="video-hidden" muted autoplay playsinline></video>
+<video id="remoteVideo" class="video-hidden" muted autoplay playsinline></video>
+
+</div>
+
+<canvas id="final-canvas" width="640" height="480"></canvas>
+
+
+<style type="text/css">
+#video-scratch {
+  position: fixed;
+  top: -650px;
+  left: 10px;
+  z-index: 10;
+  width: 480px;
+  height: 480px;
+}
+
+#final-canvas {
+  position: fixed;
+  top: 10px;
+  left: -650px;
+  width: 480px;
+  height: 480px;
+  z-index: 9000;
+}
+
+#image-scratch {
+position: fixed;
+  top: 10px;
+  left: -650px;
+  width: 480px;
+  height: 480px;
+}
+
+#videos {
+  position: fixed;
+  left:  0px;
+  width: 1px;
+  height: 1px;
+  overflow:  hidden;
+}
+
+#get_back_into_your_seat {
+  position: fixed;
+  width: 100%;
+  height: 100%;
+  left: 0px;
+  top: 0px;
+  display: none;
+}
+
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@1.0.0/dist/tf.min.js"></script>
+
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/posenet"></script>
+<canvas id="video-scratch" class="eye-canvas" width="640" height="480"></canvas>
+<img id="image-scratch" class="eye-image" width="640" height="480">
+
+<video id="get_back_into_your_seat" loop controls>
+  <source src="harangue.mp4" type="video/mp4">
+</video>
+<script>
+const scratch = document.getElementById('video-scratch')
+const context = scratch.getContext('2d')
+const source_video = document.getElementById('localVideo')
+const image_1 = document.getElementById('image-scratch')
+const final_canvas = document.getElementById('final-canvas')
+const ctx = final_canvas.getContext('2d')
+ctx.font = "16px Arial";
+let poll_timer = null
+let polling = false
+let pose_net = null
+const outputStride = 16
+const segmentationThreshold = 0.5
+const window_width = window.innerWidth
+const window_height = window.innerHeight
+const polling_interval = 30000
+
+/*
+
+0: {score: 0.9760603308677673, part: 'nose', position: {…}}
+1: {score: 0.989075243473053, part: 'leftEye', position: {…}}
+2: {score: 0.9943901896476746, part: 'rightEye', position: {…}}
+3: {score: 0.26272258162498474, part: 'leftEar', position: {…}}
+4: {score: 0.9819893836975098, part: 'rightEar', position: {…}}
+5: {score: 0.6691369414329529, part: 'leftShoulder', position: {…}}
+6: {score: 0.1769779473543167, part: 'rightShoulder', position: {…}}
+7: {score: 0.09320437163114548, part: 'leftElbow', position: {…}}
+8: {score: 0.018728630617260933, part: 'rightElbow', position: {…}}
+9: {score: 0.025577407330274582, part: 'leftWrist', position: {…}}
+10: {score: 0.023791175335645676, part: 'rightWrist', position: {…}}
+11: {score: 0.05798555538058281, part: 'leftHip', position: {…}}
+12: {score: 0.023431994020938873, part: 'rightHip', position: {…}}
+13: {score: 0.018666744232177734, part: 'leftKnee', position: {…}}
+14: {score: 0.01741129346191883, part: 'rightKnee', position: {…}}
+15: {score: 0.025674303993582726, part: 'leftAnkle', position: {…}}
+16: {score: 0.01348376926034689, part: 'rightAnkle', position: {…}}
+*/
+
+function harangue(pose){
+  const nose = pose.filter(p => p.part === 'nose')[0]
+  const left_eye = pose.filter(p => p.part === 'leftEye')[0]
+  const right_eye = pose.filter(p => p.part === 'rightEye')[0]
+  console.log(nose, left_eye, right_eye)
+  if(nose.score < 0.5 && left_eye.score < 0.5 && right_eye.score < 0.5){
+    document.body.style.backgroundColor = 'red'
+    get_back_into_your_seat.style.display = 'block'
+    get_back_into_your_seat.play()
+
+    clearInterval(poll_timer)
+    poll_timer = setInterval(poll_video, 300)
+
+
+  } else {
+    get_back_into_your_seat.style.display = 'none'
+    get_back_into_your_seat.pause()
+    document.body.style.backgroundColor = 'green'
+
+    clearInterval(poll_timer)
+    poll_timer = setInterval(poll_video, polling_interval)
+
+  }
+}
+
+
+async function poll_video(){
+  context.drawImage(source_video, 0, 0, scratch.width, scratch.height)
+  image_1.src = scratch.toDataURL()
+  const pose = await pose_net.estimateSinglePose(image_1, {
+    flipHorizontal: false
+  })
+  ctx.clearRect(0, 0, final_canvas.width, final_canvas.height);
+
+  
+  harangue(pose.keypoints)
+
+  return pose
+}
+
+async function toggle_polling(){
+  console.log('polling started...')
+
+  if(!polling){
+
+    toggle_button.innerText = 'STOP POLLING'
+
+    pose_net = await posenet.load({
+      architecture: 'MobileNetV1',
+      outputStride: 16,
+      inputResolution: { width: 640, height: 480 },
+      multiplier: 0.75
+    })
+    document.body.style.backgroundColor = 'green'
+
+    polling = true
+    poll_timer = setInterval(poll_video, polling_interval)
+
+  } else {
+    toggle_button.innerText = 'START POLLING'
+    polling = false
+    document.body.style.backgroundColor = 'black'
+
+    clearInterval(poll_timer)
+  }
+}
+
+async function openUserMedia() {
+  const stream = await navigator.mediaDevices.getUserMedia({
+    video: {width: 640, height: 480, frameRate: 1}, 
+    audio: false
+  });
+  document.querySelector('#localVideo').srcObject = stream;
+  localStream = stream;
+}
+
+openUserMedia()
+
+
+</script>
+
+<button id="toggle_button" style="
+font-size: 48pt;
+text-transform: uppercase;
+font-family: monospace;
+font-weight: bold;
+color: white;
+background-color: rgba(0,0,0,0.5);
+width: 100%;
+height: 100%;
+position: fixed; top:0px; left:0pt;" onclick="toggle_polling()
+">
+Start
+  
+</button>
+
+</body>
+</html>
